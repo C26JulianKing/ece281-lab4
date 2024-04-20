@@ -92,15 +92,72 @@ end top_basys3;
 architecture top_basys3_arch of top_basys3 is 
   
 	-- declare components and signals
-
-  
+component elevator_controller_fsm is
+    port (
+       i_clk     : in  STD_LOGIC;
+       i_reset   : in  STD_LOGIC;
+       i_stop    : in  STD_LOGIC;
+       i_up_down : in  STD_LOGIC;
+       o_floor   : out STD_LOGIC_VECTOR (3 downto 0)           
+     );
+     end component;
+     
+component sevenSegDecoder is
+     port(
+         i_D : in std_logic_vector(3 downto 0);
+         o_S : out std_logic_vector(6 downto 0)
+      );
+      end component sevenSegDecoder;
+    
+component clock_divider is
+        generic ( constant k_DIV : natural := 2    ); -- How many clk cycles until slow clock toggles
+                                                   -- Effectively, you divide the clk double this 
+                                                  -- number (e.g., k_DIV := 2 --> clock divider of 4)
+        port (     i_clk    : in std_logic;
+                i_reset  : in std_logic;           -- asynchronous
+                o_clk    : out std_logic           -- divided (slow) clock
+        );
+    end component;
+    
+    signal w_clk : std_logic;
+    signal w_floor : std_logic_vector(3 downto 0);
+    signal w_elevator_reset : std_logic;
+    signal w_clk_reset : std_logic;
+    
 begin
 	-- PORT MAPS ----------------------------------------
+inst_clkdiv : clock_divider
+    generic map (k_DIV => 50000000)
+    port map (
+        i_clk => clk,
+        i_reset => w_clk_reset,
+        o_clk => w_clk
+    );
+	
+elevator_inst : elevator_controller_fsm
+    port map (
+        i_clk => w_clk,
+        i_reset => w_elevator_reset,
+        i_up_down => sw(1),
+        i_stop => sw(0),
+        o_floor => w_floor
+        );
+      
+seven_seg_inst : sevenSegDecoder
+    port map (
+        i_D => w_floor,
+        o_S => seg
+        );
 
-	
-	
 	-- CONCURRENT STATEMENTS ----------------------------
-	
+w_clk_reset <= (btnL or btnU);
+w_elevator_reset <= (btnR or btnU);
+led(15) <= w_clk;
+an(2) <= '0';
+an(3) <= '1';
+an(1) <= '1';
+an(0) <= '1';
+
 	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
 	
 
